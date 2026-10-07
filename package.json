@@ -1,0 +1,9 @@
+{
+  "name": "geo-audit",
+  "version": "0.1.0",
+  "description": "Audit a website for visibility in generative AI answers (ChatGPT, Claude, Perplexity, Google AI Overviews).",
+  "bin": { "geo-audit": "src/cli.js" },
+  "scripts": { "start": "node src/server.js", "audit": "node src/cli.js", "test": "node test/run.js" },
+  "engines": { "node": ">=18" },
+  "license": "MIT"
+}

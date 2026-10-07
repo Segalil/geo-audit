@@ -1,0 +1,8 @@
+# Acme Solar
+
+> Acme Solar installs residential solar panels in Tel Aviv and central Israel.
+
+## Main pages
+
+- [Pricing](http://127.0.0.1:4101/pricing): Panel and installation prices
+- [FAQ](http://127.0.0.1:4101/faq): Common questions

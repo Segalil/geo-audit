@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GEO Audit</title>
+<meta name="description" content="Check how visible your website is to ChatGPT, Claude, Perplexity and Google AI Overviews, and get a prioritized list of fixes.">
+<style>
+  :root { --bg:#f7f7f5; --card:#fff; --ink:#1d1d1b; --muted:#6b6b66; --line:#e4e4df; --pass:#1f8a4c; --warn:#b7791f; --fail:#c53030; --info:#2b6cb0; --accent:#3d3dbf; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#151514; --card:#1f1f1d; --ink:#ededea; --muted:#9a9a93; --line:#33332f; --accent:#8b8bf5; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 system-ui,-apple-system,Segoe UI,sans-serif; }
+  main { max-width:900px; margin:0 auto; padding:32px 16px 64px; }
+  h1 { font-size:28px; margin:0 0 4px; } .sub { color:var(--muted); margin:0 0 24px; }
+  form { display:flex; gap:8px; } input { flex:1; min-width:0; padding:12px 14px; font-size:16px; border:1px solid var(--line); border-radius:10px; background:var(--card); color:var(--ink); }
+  button { padding:12px 20px; font-size:16px; border:0; border-radius:10px; background:var(--accent); color:#fff; cursor:pointer; } button:disabled { opacity:.6; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:20px; margin-top:20px; }
+  .score { display:flex; align-items:center; gap:24px; flex-wrap:wrap; }
+  .ring { width:120px; height:120px; border-radius:50%; display:grid; place-items:center; font-size:34px; font-weight:700; }
+  .cats { flex:1; min-width:240px; display:grid; gap:8px; }
+  .bar { display:grid; grid-template-columns:1fr 44px; gap:8px; align-items:center; font-size:14px; }
+  .bar .track { grid-column:1/-1; height:6px; background:var(--line); border-radius:3px; overflow:hidden; } .bar .fill { height:100%; }
+  h2 { font-size:18px; margin:0 0 12px; }
+  .check { display:grid; grid-template-columns:22px 1fr; gap:8px; padding:10px 0; border-top:1px solid var(--line); }
+  .check:first-of-type { border-top:0; } .dot { font-weight:700; } .t { font-weight:600; } .d { color:var(--muted); font-size:14px; overflow-wrap:anywhere; }
+  .fix { font-size:14px; margin-top:4px; white-space:pre-wrap; }
+  .pass{color:var(--pass)} .warn{color:var(--warn)} .fail{color:var(--fail)} .info{color:var(--info)}
+  ol.fixes li { margin:6px 0; } pre { background:var(--bg); border:1px solid var(--line); border-radius:8px; padding:12px; overflow:auto; font-size:13px; }
+  table { width:100%; border-collapse:collapse; font-size:14px; } td,th { text-align:left; padding:6px 4px; border-top:1px solid var(--line); }
+  .err { color:var(--fail); } .copy { float:right; padding:4px 10px; font-size:13px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>GEO Audit</h1>
+  <p class="sub">How visible is your site to ChatGPT, Claude, Perplexity and Google AI Overviews?</p>
+  <form id="f"><input id="u" placeholder="https://yoursite.com/page" required><button id="b">Audit</button></form>
+  <div id="out"></div>
+</main>
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const color = n => n >= 85 ? 'var(--pass)' : n >= 55 ? 'var(--warn)' : 'var(--fail)';
+const sym = { pass:'✔', warn:'!', fail:'✘', info:'i' };
+$('#f').onsubmit = async e => {
+  e.preventDefault(); $('#b').disabled = true; $('#out').innerHTML = '<div class="card">Auditing…</div>';
+  try {
+    const r = await (await fetch('/api/audit?url=' + encodeURIComponent($('#u').value))).json();
+    if (r.error) throw new Error(r.error);
+    render(r);
+  } catch (err) { $('#out').innerHTML = `<div class="card err">${esc(err.message)}</div>`; }
+  $('#b').disabled = false;
+};
+function render(r) {
+  let h = `<div class="card score"><div class="ring" style="border:8px solid ${color(r.score)}">${r.score}</div><div class="cats">
+    <div><b>Grade ${r.grade}</b> · ${esc(r.finalUrl)}</div>
+    ${r.categories.map(c => `<div class="bar"><span>${c.label}</span><span>${c.score}</span><div class="track"><div class="fill" style="width:${c.score}%;background:${color(c.score)}"></div></div></div>`).join('')}
+  </div></div>`;
+  h += `<div class="card"><h2>Top fixes</h2><ol class="fixes">${r.fixes.slice(0, 8).map(f => `<li><b>${esc(f.title)}</b><div class="fix">${esc(f.fix)}</div></li>`).join('') || '<li>Nothing to fix. 🎉</li>'}</ol></div>`;
+  for (const cat of r.categories) {
+    h += `<div class="card"><h2>${cat.label}</h2>${r.checks.filter(c => c.category === cat.key).map(c =>
+      `<div class="check"><span class="dot ${c.status}">${sym[c.status]}</span><div><div class="t">${esc(c.title)}</div><div class="d">${esc(c.detail)}</div></div></div>`).join('')}</div>`;
+  }
+  h += `<div class="card"><h2>AI crawler access</h2><table><tr><th>Bot</th><th>Used for</th><th>Access</th></tr>${r.bots.map(b =>
+    `<tr><td>${b.name}</td><td>${esc(b.owner)}</td><td class="${b.allowed ? 'pass' : (b.kind === 'search' ? 'fail' : 'info')}">${b.allowed ? 'Allowed' : 'Blocked'}</td></tr>`).join('')}</table></div>`;
+  if (r.generated.llmsTxt) h += `<div class="card"><button class="copy" data-c="llms">Copy</button><h2>Draft /llms.txt</h2><pre id="llms">${esc(r.generated.llmsTxt)}</pre></div>`;
+  if (r.generated.jsonLd) h += `<div class="card"><button class="copy" data-c="ld">Copy</button><h2>Draft JSON-LD (paste in &lt;head&gt;)</h2><pre id="ld">${esc('<script type="application/ld+json">\n' + r.generated.jsonLd + '\n</scr' + 'ipt>')}</pre></div>`;
+  $('#out').innerHTML = h;
+  document.querySelectorAll('.copy').forEach(b => b.onclick = () => navigator.clipboard.writeText($('#' + b.dataset.c).textContent));
+}
+</script>
+</body>
+</html>
